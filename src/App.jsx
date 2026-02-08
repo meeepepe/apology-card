@@ -8,10 +8,24 @@ const ApologyCard = () => {
   const [animating, setAnimating] = useState(false);
   const [hearts, setHearts] = useState([]);
   const [showConfetti, setShowConfetti] = useState(false);
-
-  // Audio State
-  const [isMuted, setIsMuted] = useState(false);
+  
+  // --- ส่วนจัดการเพลง (Audio Logic) ---
+  // เริ่มต้นเป็น true (ปิดเสียง) ไว้ก่อน แต่พอเปิดซองเราจะสั่งให้เป็น false
+  const [isMuted, setIsMuted] = useState(true); 
   const audioRef = useRef(null);
+
+  const toggleAudio = () => {
+      if (audioRef.current) {
+          if (audioRef.current.paused) {
+              audioRef.current.play();
+              setIsMuted(false);
+          } else {
+              audioRef.current.pause();
+              setIsMuted(true);
+          }
+      }
+  };
+  // ----------------------------------
 
   // Floating Background Hearts Logic
   useEffect(() => {
@@ -31,19 +45,6 @@ const ApologyCard = () => {
     }, 1500);
     return () => clearInterval(interval);
   }, []);
-
-  // Audio Toggle Function
-  const toggleAudio = () => {
-      if (audioRef.current) {
-          if (isMuted) {
-              audioRef.current.play();
-              setIsMuted(false);
-          } else {
-              audioRef.current.pause();
-              setIsMuted(true);
-          }
-      }
-  };
 
   // Content Data
   const content = {
@@ -109,11 +110,27 @@ const ApologyCard = () => {
 
   const openEnvelope = () => {
     setViewState('opening');
-    // Attempt to play audio when user interacts
+    
+    // --- สั่งเล่นเพลงตรงนี้ทันที (Auto Play on Interaction) ---
     if (audioRef.current) {
-        audioRef.current.volume = 0.5; // Set volume to 50%
-        audioRef.current.play().catch(error => console.log("Audio play failed:", error));
+        audioRef.current.volume = 0.5; // ความดัง 50%
+        
+        const playPromise = audioRef.current.play();
+        
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                // เล่นสำเร็จ -> เปลี่ยนสถานะปุ่มเป็น "เปิดเสียง"
+                setIsMuted(false);
+            })
+            .catch(error => {
+                console.log("Audio play failed:", error);
+                // ถ้าเล่นไม่ได้ (เช่น Browser บล็อกจริงๆ) ก็ให้ปุ่มเป็น "ปิดเสียง" ไว้
+                setIsMuted(true);
+            });
+        }
     }
+    // -----------------------------------------------------
+
     setTimeout(() => {
         setViewState('language');
     }, 1500);
@@ -133,23 +150,24 @@ const ApologyCard = () => {
   // Preload fonts
   useEffect(() => {
     const link = document.createElement('link');
-    link.href = '[https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500&family=Caveat:wght@400;500;600&display=swap](https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500&family=Caveat:wght@400;500;600&display=swap)';
+    link.href = 'https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500&family=Caveat:wght@400;500;600&display=swap';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
   }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-100 to-rose-200 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden relative font-['Prompt'] selection:bg-rose-200">
-
-      {/* Audio Element */}
+      
+      {/* --- ตัวเล่นเพลง (Loop เพลงซ้ำเมื่อจบ) --- */}
       <audio ref={audioRef} src="/song.mp3" loop />
 
-      {/* Music Toggle Button (Top Right) */}
+      {/* --- ปุ่มเปิด/ปิดเสียง (มุมขวาบน) --- */}
       <button 
            onClick={toggleAudio}
            className="absolute top-4 right-4 z-50 p-3 bg-white/50 backdrop-blur-sm rounded-full shadow-sm hover:bg-white/80 transition-all text-rose-400"
       >
-           {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+           {/* แสดงไอคอนตามสถานะจริงของเพลง */}
+           {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5 animate-pulse" />}
       </button>
 
       <style>{`
@@ -194,7 +212,7 @@ const ApologyCard = () => {
                 <div className="absolute top-0 left-0 w-full h-1/2 bg-rose-50 origin-top transform transition-transform duration-500 z-10" 
                      style={{ clipPath: 'polygon(0 0, 50% 100%, 100% 0)' }}>
                 </div>
-
+                
                 {/* Envelope Body lines */}
                 <div className="absolute bottom-0 left-0 w-full h-full bg-white z-0 rounded-lg overflow-hidden">
                     <div className="absolute bottom-0 left-0 w-0 h-0 border-l-[144px] border-b-[96px] border-l-transparent border-b-rose-50/50 sm:border-l-[180px] sm:border-b-[120px]"></div>
@@ -224,7 +242,7 @@ const ApologyCard = () => {
             <Mail className="w-10 h-10 sm:w-12 sm:h-12 text-rose-400 mx-auto animate-bounce" />
             <h1 className="text-xl sm:text-2xl text-gray-700 font-light">You have a message from Pond</h1>
           </div>
-
+          
           <div className="flex flex-col gap-3 sm:gap-4">
             <button 
               onClick={() => selectLanguage('en')}
@@ -279,7 +297,7 @@ const ApologyCard = () => {
 
           {/* Card Container */}
           <div className={`bg-white relative rounded-2xl shadow-2xl overflow-hidden transition-all duration-500 ease-in-out transform flex flex-col ${animating ? 'opacity-50 scale-95 blur-[1px]' : 'opacity-100 scale-100 blur-0'}`}>
-
+            
             {/* Progress Bar */}
             <div className="h-1 bg-gray-50 w-full">
                 <div 
@@ -290,10 +308,10 @@ const ApologyCard = () => {
 
             {/* Postcard Header Texture */}
             <div className="h-1.5 bg-gradient-to-r from-rose-200 via-pink-200 to-rose-200 opacity-60" />
-
+            
             {/* Main Content Body */}
             <div className="p-6 sm:p-10 md:p-12 min-h-[500px] sm:min-h-[550px] flex flex-col justify-between">
-
+              
               {/* Header: From/To & Stamp */}
               <div className="flex justify-between items-start mb-4 sm:mb-6 border-b border-gray-50 pb-4">
                 <div className="flex flex-col space-y-1.5">
@@ -329,7 +347,7 @@ const ApologyCard = () => {
                             <Heart className="w-8 h-8 sm:w-10 sm:h-10 fill-rose-400" />
                         </div>
                     </div>
-
+                    
                     <h2 className="text-2xl sm:text-3xl md:text-4xl text-gray-700 font-light tracking-wide">
                       {content[language][page].text}
                     </h2>
@@ -339,7 +357,7 @@ const ApologyCard = () => {
                         className="mt-6 px-8 py-3 bg-rose-400 text-white rounded-full hover:bg-rose-500 transition-all shadow-lg shadow-rose-100 flex items-center gap-2 mx-auto active:scale-95 touch-manipulation font-light tracking-wide"
                     >
                         <Sparkles className="w-4 h-4" />
-                        <span className="text-sm">{language === 'th' ? 'ให้ใจแก่ปอนอีกครั้ง' : 'Send Love to Pond'}</span>
+                        <span className="text-sm">{language === 'th' ? 'ส่งกำลังใจให้ปอน' : 'Send Love to Pond'}</span>
                     </button>
 
                     <button 
@@ -355,11 +373,11 @@ const ApologyCard = () => {
                   <div className="relative w-full overflow-y-auto overflow-x-hidden max-h-[50vh] sm:max-h-none no-scrollbar px-1">
                       {/* Fixed Sparkles positioning to be inside padding to prevent overflow */}
                       <Sparkles className="absolute top-0 left-0 w-4 h-4 text-yellow-200 opacity-60" />
-
+                      
                       <p className={`text-base sm:text-lg md:text-xl text-gray-600 leading-8 sm:leading-loose whitespace-pre-line text-center font-light px-4 break-words tracking-wide`}>
                         "{content[language][page].text}"
                       </p>
-
+                      
                       <Sparkles className="absolute bottom-0 right-0 w-4 h-4 text-rose-200 opacity-60" />
                   </div>
                 )}
@@ -392,7 +410,7 @@ const ApologyCard = () => {
 
             </div>
           </div>
-
+          
           <p className="text-center text-rose-300/50 text-[10px] mt-8 pb-4 font-light tracking-[0.2em] uppercase">
             Made with heart for Nat
           </p>
